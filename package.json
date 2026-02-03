@@ -1,0 +1,16 @@
+{
+  "name": "farcaster-agent",
+  "version": "1.0.0",
+  "description": "Autonomous Farcaster account creation and casting agent",
+  "main": "index.js",
+  "scripts": {
+    "register": "node src/register-fid.js",
+    "add-signer": "node src/add-signer.js",
+    "cast": "node src/post-cast.js"
+  },
+  "dependencies": {
+    "ethers": "^6.16.0",
+    "@farcaster/hub-nodejs": "^0.12.0"
+  },
+  "type": "commonjs"
+}
