@@ -5,6 +5,14 @@ const { swapEthToUsdc } = require('./swap-to-usdc');
 const { autoSetup, checkAllBalances, determineFundingStrategy } = require('./auto-setup');
 const { setProfileData, registerFname, setupFullProfile } = require('./set-profile');
 const { checkFidSync, checkSignerSync, getCast } = require('./x402');
+const {
+  saveCredentials,
+  loadCredentials,
+  listCredentials,
+  setActiveAccount,
+  updateCredentials,
+  getCredentialsPath
+} = require('./credentials');
 const config = require('./config');
 
 module.exports = {
@@ -23,6 +31,14 @@ module.exports = {
   setProfileData,
   registerFname,
   setupFullProfile,
+
+  // Credential management
+  saveCredentials,
+  loadCredentials,
+  listCredentials,
+  setActiveAccount,
+  updateCredentials,
+  getCredentialsPath,
 
   // Utilities
   checkFidSync,

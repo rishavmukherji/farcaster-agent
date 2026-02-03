@@ -3,6 +3,7 @@ const { registerFid } = require('./register-fid');
 const { addSigner } = require('./add-signer');
 const { postCast } = require('./post-cast');
 const { USDC_BASE, ABIS } = require('./config');
+const { saveCredentials, getCredentialsPath } = require('./credentials');
 
 // Chain configurations
 const CHAINS = {
@@ -280,8 +281,15 @@ async function bridgeViaAcross(wallet, fromChain, toChain, amount) {
 
 /**
  * Main auto-setup function
+ *
+ * @param {string} privateKey - Custody wallet private key
+ * @param {string} [castText] - Text for the first cast
+ * @param {Object} [options]
+ * @param {boolean} [options.save=true] - Save credentials to persistent storage
+ * @param {string} [options.credentialsPath] - Custom path for credentials file
  */
-async function autoSetup(privateKey, castText = 'gm! this account was created autonomously by an AI agent') {
+async function autoSetup(privateKey, castText = 'gm! this account was created autonomously by an AI agent', options = {}) {
+  const { save = true, credentialsPath } = options;
   const tempWallet = new Wallet(privateKey);
   console.log('=== Farcaster Auto-Setup ===\n');
   console.log('Wallet:', tempWallet.address);
@@ -361,7 +369,7 @@ async function autoSetup(privateKey, castText = 'gm! this account was created au
 
   // Step 5: Add signer
   console.log('\nStep 5: Adding signer key...\n');
-  const { signerPrivateKey } = await addSigner(privateKey);
+  const { signerPrivateKey, signerPublicKey } = await addSigner(privateKey);
   console.log('Signer added');
 
   // Step 6: Wait for hub sync
@@ -381,40 +389,65 @@ async function autoSetup(privateKey, castText = 'gm! this account was created au
   console.log('FID:', fid.toString());
   console.log('Cast hash:', hash);
   console.log('Verified:', verified);
-  console.log('URL: https://warpcast.com/~/conversations/' + hash);
+  console.log('URL: https://farcaster.xyz/~/conversations/' + hash);
 
-  return {
+  const result = {
     fid: fid.toString(),
+    custodyAddress: tempWallet.address,
+    custodyPrivateKey: privateKey,
+    signerPublicKey: signerPublicKey,
     signerPrivateKey,
     castHash: hash,
     verified
   };
+
+  // Save credentials to persistent storage
+  if (save) {
+    console.log('\nStep 8: Saving credentials...');
+    const savedPath = saveCredentials(result, { path: credentialsPath });
+    result.credentialsPath = savedPath;
+  }
+
+  return result;
 }
 
 // CLI usage
 if (require.main === module) {
-  const privateKey = process.env.PRIVATE_KEY || process.argv[2];
-  const castText = process.argv[3];
+  const args = process.argv.slice(2);
+  const noSave = args.includes('--no-save');
+  const filteredArgs = args.filter(a => !a.startsWith('--'));
+
+  const privateKey = process.env.PRIVATE_KEY || filteredArgs[0];
+  const castText = filteredArgs[1];
 
   if (!privateKey) {
-    console.log('Usage: PRIVATE_KEY=0x... node auto-setup.js ["optional cast text"]');
+    console.log('Usage: PRIVATE_KEY=0x... node auto-setup.js ["optional cast text"] [--no-save]');
     console.log('\nThis will:');
     console.log('1. Check balances across Ethereum, Optimism, Base, Arbitrum, Polygon');
     console.log('2. Bridge/swap funds as needed');
     console.log('3. Register a new Farcaster account');
     console.log('4. Add a signer key');
     console.log('5. Post your first cast');
+    console.log('6. Save credentials to persistent storage (default: ~/.openclaw/ or ./credentials.json)');
+    console.log('\nOptions:');
+    console.log('  --no-save    Do not save credentials to file');
+    console.log('\nCredentials path:', getCredentialsPath());
     process.exit(1);
   }
 
-  autoSetup(privateKey, castText)
+  autoSetup(privateKey, castText, { save: !noSave })
     .then(result => {
       if (result.error) {
         process.exit(1);
       }
-      console.log('\nCredentials to save:');
+      console.log('\n=== Credentials ===');
       console.log('FID:', result.fid);
-      console.log('Signer Private Key:', result.signerPrivateKey);
+      console.log('Custody Address:', result.custodyAddress);
+      console.log('Signer Public Key:', result.signerPublicKey);
+      if (result.credentialsPath) {
+        console.log('\nCredentials saved to:', result.credentialsPath);
+        console.log('Load with: node src/credentials.js get');
+      }
     })
     .catch(err => {
       console.error('Error:', err.message);

@@ -13,7 +13,7 @@ This toolkit allows an AI agent (or script) to:
 2. Add a signer key for posting
 3. Post casts to the network
 
-All operations are fully programmatic - no Warpcast app or manual steps required.
+All operations are fully programmatic - no Farcaster app or manual steps required.
 
 **For AI agents:** See [AGENT_GUIDE.md](./AGENT_GUIDE.md) for detailed implementation instructions.
 

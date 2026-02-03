@@ -10,6 +10,7 @@ const {
 } = require('@farcaster/hub-nodejs');
 const https = require('https');
 const { RPC, NEYNAR, USDC_BASE, EIP712, EIP712_TYPES } = require('./config');
+const { updateCredentials } = require('./credentials');
 
 /**
  * Create x402 payment header for Neynar API
@@ -266,6 +267,14 @@ async function registerFname({ privateKey, signerPrivateKey, fid, fname }) {
 
   console.log('\nSUCCESS! Username @' + fname + ' is now active.');
 
+  // Update stored credentials with fname
+  try {
+    updateCredentials(fid, { fname });
+    console.log('Credentials updated with fname.');
+  } catch (e) {
+    // Credentials file may not exist if not using auto-setup
+  }
+
   return {
     fname,
     fid,
@@ -305,7 +314,7 @@ async function setupFullProfile({ privateKey, signerPrivateKey, fid, fname, disp
   }
 
   console.log('\n=== Profile setup complete! ===');
-  console.log('View at: https://warpcast.com/' + (fname || '~/profiles/' + fid));
+  console.log('View at: https://farcaster.xyz/' + (fname || '~/profiles/' + fid));
 }
 
 // CLI usage

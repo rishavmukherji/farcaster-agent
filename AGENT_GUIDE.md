@@ -328,12 +328,59 @@ For PFP, you need a publicly accessible image URL. Options:
 2. **Upload to IPFS** via Pinata, Infura, etc.
 3. **Any public image URL** (must be HTTPS)
 
-## Credentials to Save
+## Credential Storage
 
-After successful setup, save:
+Credentials are **automatically saved** after setup to:
+- `~/.openclaw/farcaster-credentials.json` (if OpenClaw is installed)
+- `./credentials.json` (fallback)
+
+The stored credentials include:
 - **FID:** The Farcaster ID number
-- **Custody Private Key:** Ethereum wallet key (controls the FID)
-- **Signer Private Key:** Ed25519 key for signing casts (hex, no 0x prefix)
+- **Custody Address & Private Key:** Ethereum wallet (controls the FID)
+- **Signer Public & Private Key:** Ed25519 key for signing casts
+- **Fname:** Username (if registered)
+
+### Managing Credentials
+
+```bash
+# List all stored accounts
+node src/credentials.js list
+
+# Get credentials for active account
+node src/credentials.js get
+
+# Get credentials for specific FID
+node src/credentials.js get 123456
+
+# Show credentials file path
+node src/credentials.js path
+```
+
+### Loading Credentials Programmatically
+
+```javascript
+const { loadCredentials, listCredentials } = require('./src');
+
+// Load active account
+const creds = loadCredentials();
+console.log('FID:', creds.fid);
+console.log('Address:', creds.custodyAddress);
+
+// Load specific account
+const specific = loadCredentials({ fid: '123456' });
+
+// List all accounts
+const accounts = listCredentials();
+accounts.forEach(a => console.log(`FID ${a.fid}: @${a.fname || '(no fname)'}`));
+```
+
+### Disabling Auto-Save
+
+To prevent auto-saving credentials:
+
+```bash
+PRIVATE_KEY=0x... node src/auto-setup.js "Your cast" --no-save
+```
 
 ## Example Complete Flow
 
@@ -351,7 +398,7 @@ const result = await autoSetup(wallet.privateKey, 'My first autonomous cast!');
 
 console.log('FID:', result.fid);
 console.log('Signer Key:', result.signerPrivateKey);
-console.log('Cast URL: https://warpcast.com/~/conversations/' + result.castHash);
+console.log('Cast URL: https://farcaster.xyz/~/conversations/' + result.castHash);
 ```
 
 ## Version Requirements

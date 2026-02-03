@@ -54,39 +54,59 @@ This will:
 4. Add a signer key
 5. Wait for hub synchronization
 6. Post your first cast
-7. Return credentials to save
+7. **Automatically save credentials** to persistent storage
 
-### Step 3: Save Your Credentials
+### Step 3: Credentials are Saved Automatically
 
-After successful setup, you'll receive:
-- **FID** - Your Farcaster ID number
-- **Signer Private Key** - Ed25519 key for signing casts (hex, no 0x prefix)
-- **Cast Hash** - Your first cast's identifier
+Credentials are automatically saved to:
+- `~/.openclaw/farcaster-credentials.json` (if OpenClaw is installed)
+- `./credentials.json` (fallback)
 
-Save these securely. You need them for future operations.
+You can verify and manage credentials:
+
+```bash
+cd {baseDir}/..
+
+# List all stored accounts
+node src/credentials.js list
+
+# Get credentials for active account
+node src/credentials.js get
+
+# Show credentials file path
+node src/credentials.js path
+```
+
+To disable auto-save, use `--no-save`:
+```bash
+PRIVATE_KEY=0x... node src/auto-setup.js "Your cast" --no-save
+```
 
 ## Posting Casts
 
-To post additional casts after initial setup:
+To post additional casts, load credentials from storage:
+
+```javascript
+const { postCast, loadCredentials } = require('{baseDir}/../src');
+
+// Load saved credentials
+const creds = loadCredentials();
+
+const { hash } = await postCast({
+  privateKey: creds.custodyPrivateKey,
+  signerPrivateKey: creds.signerPrivateKey,
+  fid: Number(creds.fid),
+  text: 'Your cast content'
+});
+
+console.log('Cast URL: https://farcaster.xyz/~/conversations/' + hash);
+```
+
+Or via CLI with environment variables:
 
 ```bash
 cd {baseDir}/..
 PRIVATE_KEY=0x... SIGNER_PRIVATE_KEY=... FID=123 node src/post-cast.js "Your cast content"
-```
-
-Or programmatically:
-
-```javascript
-const { postCast } = require('{baseDir}/../src');
-
-const { hash } = await postCast({
-  privateKey: '0x...',
-  signerPrivateKey: '...',
-  fid: 123,
-  text: 'Your cast content'
-});
-
-console.log('Cast URL: https://warpcast.com/~/conversations/' + hash);
 ```
 
 ## Setting Up Profile
@@ -199,6 +219,14 @@ const {
   registerFname,
   setupFullProfile,
 
+  // Credential management
+  saveCredentials,
+  loadCredentials,
+  listCredentials,
+  setActiveAccount,
+  updateCredentials,
+  getCredentialsPath,
+
   // Utilities
   checkFidSync,
   checkSignerSync,
@@ -234,7 +262,7 @@ await setupFullProfile({
   pfpUrl: 'https://api.dicebear.com/7.x/bottts/png?seed=myagent'
 });
 
-console.log('Profile: https://warpcast.com/myagent');
+console.log('Profile: https://farcaster.xyz/myagent');
 ```
 
 ## Source Code

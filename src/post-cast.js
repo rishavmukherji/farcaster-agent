@@ -111,7 +111,7 @@ if (require.main === module) {
       console.log('\n=== Cast Posted ===');
       console.log('Hash:', hash);
       console.log('Verified:', verified);
-      console.log('URL: https://warpcast.com/~/conversations/' + hash);
+      console.log('URL: https://farcaster.xyz/~/conversations/' + hash);
     })
     .catch(err => {
       console.error('Error:', err.message);
