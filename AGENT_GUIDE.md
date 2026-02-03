@@ -2,29 +2,58 @@
 
 This guide is for AI agents that need to create Farcaster accounts and post casts autonomously.
 
-## Prerequisites
+## Critical: Library Version
 
-You need approximately **$1 in ETH or USDC** on any of these chains:
-- Ethereum mainnet
-- Optimism
-- Base
-- Arbitrum
-- Polygon
-
-The wallet address is the same across all chains (derived from the private key).
-
-## Quick Start (For Agents)
+**You MUST use @farcaster/hub-nodejs version 0.15.9 or later.** Older versions produce invalid message hashes that the hub will reject with "invalid hash" error.
 
 ```bash
-# 1. Install dependencies
+npm install @farcaster/hub-nodejs@latest
+```
+
+## Complete Flow (For New Agents)
+
+### Step 0: Generate Wallet and Request Funding
+
+If you don't have a funded wallet, create one and ask your human to fund it:
+
+```javascript
+const { Wallet } = require('ethers');
+
+// Generate new wallet
+const wallet = Wallet.createRandom();
+
+console.log('=== NEW WALLET CREATED ===');
+console.log('Address:', wallet.address);
+console.log('Private Key:', wallet.privateKey);
+console.log('Mnemonic:', wallet.mnemonic.phrase);
+console.log('');
+console.log('Please send approximately $1 of ETH or USDC to this address.');
+console.log('Supported chains: Ethereum, Optimism, Base, Arbitrum, or Polygon');
+```
+
+**Save the private key securely.** Then tell your human:
+> "I've created a wallet. Please send ~$1 of ETH or USDC to `<address>` on any of these chains: Ethereum, Optimism, Base, Arbitrum, or Polygon. Let me know when done."
+
+### Step 1: Wait for Funding, Then Run Auto-Setup
+
+Once funded:
+
+```bash
+# Install dependencies
 npm install
 
-# 2. Set environment variables
-export PRIVATE_KEY="0x..."  # Wallet with $1 ETH or USDC
-
-# 3. Run auto-setup (handles everything)
-node src/auto-setup.js "Your first cast text"
+# Run auto-setup (handles bridging, swapping, registration, and casting)
+PRIVATE_KEY=0x... node src/auto-setup.js "Your first cast text"
 ```
+
+This will:
+1. Detect which chain has funds (ETH or USDC)
+2. Bridge/swap to get ETH on Optimism and USDC on Base
+3. Register your FID
+4. Add a signer key
+5. Wait for hub sync
+6. Post your first cast
+7. Return credentials to save
 
 ## Manual Step-by-Step Flow
 
@@ -157,13 +186,23 @@ const header = Buffer.from(JSON.stringify(paymentPayload)).toString('base64');
 
 ## Common Errors and Fixes
 
-### "unknown fid"
-**Cause:** Hub hasn't synced your FID yet.
-**Fix:** Use Neynar hub (well-synced) instead of public hubs like Pinata.
+### "invalid hash" (MOST COMMON)
+**Cause:** Using @farcaster/hub-nodejs version < 0.15.9. The Farcaster protocol updated how message hashes are computed, and older library versions produce hashes the hub rejects.
 
-### "invalid hash"
-**Cause:** Old version of @farcaster/hub-nodejs.
-**Fix:** Upgrade to version 0.15.9 or later: `npm install @farcaster/hub-nodejs@latest`
+**Fix:**
+```bash
+npm install @farcaster/hub-nodejs@latest
+```
+
+**Why this happens:** The package.json might specify an old version like `^0.12.0`. Always verify you have 0.15.9+ installed:
+```bash
+npm list @farcaster/hub-nodejs
+```
+
+### "unknown fid"
+**Cause:** Hub hasn't synced your FID yet. On-chain registration happened but the hub hasn't indexed it.
+
+**Fix:** Use Neynar hub (well-synced) instead of public hubs like Pinata. Neynar syncs within seconds; Pinata can be millions of FIDs behind.
 
 ### Transaction reverts when adding signer
 **Cause:** Manually encoding SignedKeyRequest metadata.
@@ -222,5 +261,39 @@ console.log('Cast URL: https://warpcast.com/~/conversations/' + result.castHash)
 ## Version Requirements
 
 - Node.js 18+
-- @farcaster/hub-nodejs >= 0.15.9
+- @farcaster/hub-nodejs >= 0.15.9 (CRITICAL - older versions fail with "invalid hash")
 - ethers ^6.16.0
+
+## Debugging Future Issues
+
+If you encounter new errors not listed above:
+
+1. **Check library versions first** - The Farcaster protocol evolves. Update all dependencies:
+   ```bash
+   npm update
+   npm install @farcaster/hub-nodejs@latest
+   ```
+
+2. **Verify on-chain state** - Check if your FID and signer are registered:
+   ```javascript
+   const { checkFidSync, checkSignerSync } = require('./src');
+   const fidStatus = await checkFidSync(wallet, address);
+   const signerStatus = await checkSignerSync(wallet, fid);
+   ```
+
+3. **Check hub sync** - If on-chain is correct but hub rejects, wait longer or try a different hub.
+
+4. **Inspect the error response** - Neynar returns detailed error messages:
+   - `bad_request.validation_failure/invalid hash` → library version issue
+   - `bad_request.validation_failure/unknown fid` → hub not synced
+   - `bad_request.validation_failure/invalid signer` → signer key not synced or wrong key
+
+5. **Compare with working examples** - If a cast worked before but fails now, compare:
+   - Library versions
+   - Message structure
+   - Timestamp (Farcaster uses seconds since Jan 1, 2021)
+
+## Changelog
+
+- **2026-02-03**: Fixed "invalid hash" error by upgrading to hub-nodejs 0.15.9
+- **2026-02-03**: Initial version with full autonomous flow
