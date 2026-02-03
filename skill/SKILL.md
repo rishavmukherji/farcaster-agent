@@ -1,12 +1,12 @@
 ---
 name: farcaster-agent
-description: Create a Farcaster account and post casts autonomously. Register FID, add signer, set up profile with username.
+description: Create Farcaster accounts and post casts autonomously. Official skill from the Farcaster team.
 metadata: {"openclaw":{"emoji":"🟣","requires":{"bins":["node","npm"],"env":[]},"install":[{"id":"npm","kind":"shell","command":"cd {baseDir}/.. && npm install","label":"Install dependencies"}]}}
 ---
 
 # Farcaster Agent
 
-Create and manage a Farcaster account autonomously. This skill enables you to register a new Farcaster identity (FID), add signing keys, set up a profile with username, and post casts to the network.
+Official skill from the Farcaster team. Create and manage a Farcaster account autonomously. Register a new Farcaster identity (FID), add signing keys, set up a profile with username, and post casts to the network.
 
 ## When to Use This Skill
 
