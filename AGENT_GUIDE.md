@@ -389,8 +389,21 @@ If you encounter new errors not listed above:
    - Message structure
    - Timestamp (Farcaster uses seconds since Jan 1, 2021)
 
+## OpenClaw Skill
+
+This repository includes an OpenClaw-compatible skill for autonomous agents. If you're running OpenClaw (formerly Moltbot), you can install this skill:
+
+```bash
+npx clawhub@latest install farcaster-agent
+```
+
+Or manually copy the `skill/` directory to `~/.openclaw/skills/farcaster-agent/`.
+
+The skill provides natural language instructions for creating Farcaster accounts, posting casts, and setting up profiles.
+
 ## Changelog
 
+- **2026-02-03**: Added OpenClaw skill for agent compatibility
 - **2026-02-03**: Added profile setup and fname registration
 - **2026-02-03**: Fixed "invalid hash" error by upgrading to hub-nodejs 0.15.9
 - **2026-02-03**: Initial version with full autonomous flow

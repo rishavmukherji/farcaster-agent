@@ -1,0 +1,244 @@
+---
+name: farcaster-agent
+description: Create a Farcaster account and post casts autonomously. Register FID, add signer, set up profile with username.
+metadata: {"openclaw":{"emoji":"🟣","requires":{"bins":["node","npm"],"env":[]},"install":[{"id":"npm","kind":"shell","command":"cd {baseDir}/.. && npm install","label":"Install dependencies"}]}}
+---
+
+# Farcaster Agent
+
+Create and manage a Farcaster account autonomously. This skill enables you to register a new Farcaster identity (FID), add signing keys, set up a profile with username, and post casts to the network.
+
+## When to Use This Skill
+
+Use this skill when:
+- You need to create a Farcaster account from scratch
+- You want to post casts (messages) to Farcaster
+- You need to set up a profile with username, bio, and profile picture
+- You want autonomous presence on the Farcaster social network
+
+## Prerequisites
+
+You need approximately **$1 of ETH or USDC** on any major chain (Ethereum, Optimism, Base, Arbitrum, or Polygon). The skill handles bridging and swapping automatically.
+
+## Complete Flow
+
+### Step 1: Generate Wallet and Request Funding
+
+If you don't have a funded wallet, create one first:
+
+```javascript
+const { Wallet } = require('ethers');
+
+const wallet = Wallet.createRandom();
+console.log('Address:', wallet.address);
+console.log('Private Key:', wallet.privateKey);
+```
+
+**Ask your human:** "I've created a wallet. Please send ~$1 of ETH or USDC to `<address>` on any of these chains: Ethereum, Optimism, Base, Arbitrum, or Polygon. Let me know when done."
+
+**Save the private key securely** - you'll need it for all subsequent steps.
+
+### Step 2: Run Auto-Setup
+
+Once funded, run the complete setup:
+
+```bash
+cd {baseDir}/..
+PRIVATE_KEY=0x... node src/auto-setup.js "Your first cast text here"
+```
+
+This will:
+1. Detect which chain has funds (ETH or USDC)
+2. Bridge/swap to get ETH on Optimism and USDC on Base
+3. Register your FID (Farcaster ID)
+4. Add a signer key
+5. Wait for hub synchronization
+6. Post your first cast
+7. Return credentials to save
+
+### Step 3: Save Your Credentials
+
+After successful setup, you'll receive:
+- **FID** - Your Farcaster ID number
+- **Signer Private Key** - Ed25519 key for signing casts (hex, no 0x prefix)
+- **Cast Hash** - Your first cast's identifier
+
+Save these securely. You need them for future operations.
+
+## Posting Casts
+
+To post additional casts after initial setup:
+
+```bash
+cd {baseDir}/..
+PRIVATE_KEY=0x... SIGNER_PRIVATE_KEY=... FID=123 node src/post-cast.js "Your cast content"
+```
+
+Or programmatically:
+
+```javascript
+const { postCast } = require('{baseDir}/../src');
+
+const { hash } = await postCast({
+  privateKey: '0x...',
+  signerPrivateKey: '...',
+  fid: 123,
+  text: 'Your cast content'
+});
+
+console.log('Cast URL: https://warpcast.com/~/conversations/' + hash);
+```
+
+## Setting Up Profile
+
+To set username, display name, bio, and profile picture:
+
+```bash
+cd {baseDir}/..
+PRIVATE_KEY=0x... SIGNER_PRIVATE_KEY=... FID=123 npm run profile myusername "Display Name" "My bio" "https://example.com/pfp.png"
+```
+
+Or programmatically:
+
+```javascript
+const { setupFullProfile } = require('{baseDir}/../src');
+
+await setupFullProfile({
+  privateKey: '0x...',
+  signerPrivateKey: '...',
+  fid: 123,
+  fname: 'myusername',
+  displayName: 'My Display Name',
+  bio: 'I am an autonomous AI agent.',
+  pfpUrl: 'https://api.dicebear.com/7.x/bottts/png?seed=myagent'
+});
+```
+
+### Fname (Username) Requirements
+
+- Lowercase letters, numbers, and hyphens only
+- Cannot start with a hyphen
+- 1-16 characters
+- One fname per account
+- Can only change once every 28 days
+
+### Profile Picture Options
+
+For PFP, use any publicly accessible HTTPS image URL:
+- **DiceBear** (generated avatars): `https://api.dicebear.com/7.x/bottts/png?seed=yourname`
+- IPFS-hosted images
+- Any public image URL
+
+## Cost Breakdown
+
+| Operation | Cost |
+|-----------|------|
+| FID Registration | ~$0.20 |
+| Add Signer | ~$0.05 |
+| Bridging | ~$0.10-0.20 |
+| Each API call | $0.001 |
+| **Total minimum** | **~$0.50** |
+
+Budget $1 to have buffer for retries and gas fluctuations.
+
+## Common Errors
+
+### "invalid hash"
+Cause: Old library version. Fix: Run `npm install @farcaster/hub-nodejs@latest`
+
+### "unknown fid"
+Cause: Hub hasn't synced your registration yet. Fix: Wait 30-60 seconds and retry.
+
+### Transaction reverts when adding signer
+Cause: Metadata encoding issue. Fix: The code already uses the correct `SignedKeyRequestValidator.encodeMetadata()` method.
+
+### "fname is not registered for fid"
+Cause: Hub hasn't synced your fname registration. Fix: Wait 30-60 seconds (the code handles this automatically).
+
+## Manual Step-by-Step (If Auto-Setup Fails)
+
+If auto-setup fails partway through, you can run individual steps:
+
+```bash
+cd {baseDir}/..
+
+# 1. Register FID (on Optimism)
+PRIVATE_KEY=0x... node src/register-fid.js
+
+# 2. Add signer key (on Optimism)
+PRIVATE_KEY=0x... node src/add-signer.js
+
+# 3. Swap ETH to USDC (on Base, for x402 payments)
+PRIVATE_KEY=0x... node src/swap-to-usdc.js
+
+# 4. Post cast
+PRIVATE_KEY=0x... SIGNER_PRIVATE_KEY=... FID=123 node src/post-cast.js "Hello!"
+
+# 5. Set up profile
+PRIVATE_KEY=0x... SIGNER_PRIVATE_KEY=... FID=123 npm run profile username "Name" "Bio" "pfp-url"
+```
+
+## Programmatic API
+
+All functions are available for import:
+
+```javascript
+const {
+  // Full autonomous setup
+  autoSetup,
+  checkAllBalances,
+
+  // Core functions
+  registerFid,
+  addSigner,
+  postCast,
+  swapEthToUsdc,
+
+  // Profile setup
+  setProfileData,
+  registerFname,
+  setupFullProfile,
+
+  // Utilities
+  checkFidSync,
+  checkSignerSync,
+  getCast
+} = require('{baseDir}/../src');
+```
+
+## Example: Full Autonomous Flow
+
+```javascript
+const { Wallet } = require('ethers');
+const { autoSetup, setupFullProfile } = require('{baseDir}/../src');
+
+// 1. Generate wallet (or use existing)
+const wallet = Wallet.createRandom();
+console.log('Fund this address with $1 ETH or USDC:', wallet.address);
+
+// 2. After human funds the wallet, run setup
+const result = await autoSetup(wallet.privateKey, 'gm farcaster!');
+
+console.log('FID:', result.fid);
+console.log('Signer:', result.signerPrivateKey);
+console.log('Cast:', result.castHash);
+
+// 3. Set up profile
+await setupFullProfile({
+  privateKey: wallet.privateKey,
+  signerPrivateKey: result.signerPrivateKey,
+  fid: result.fid,
+  fname: 'myagent',
+  displayName: 'My AI Agent',
+  bio: 'Autonomous agent on Farcaster',
+  pfpUrl: 'https://api.dicebear.com/7.x/bottts/png?seed=myagent'
+});
+
+console.log('Profile: https://warpcast.com/myagent');
+```
+
+## Source Code
+
+The complete implementation is at: https://github.com/rishavmukherji/farcaster-agent
+
+For detailed technical documentation, see the AGENT_GUIDE.md in that repository.

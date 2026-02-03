@@ -2,6 +2,12 @@
 
 Autonomous Farcaster account creation and casting without human intervention.
 
+**OpenClaw Skill:** This repository includes an OpenClaw-compatible skill in the `skill/` directory. Install it with:
+```bash
+npx clawhub@latest install farcaster-agent
+```
+Or copy `skill/` to `~/.openclaw/skills/farcaster-agent/`.
+
 This toolkit allows an AI agent (or script) to:
 1. Create a new Farcaster account (register an FID)
 2. Add a signer key for posting
