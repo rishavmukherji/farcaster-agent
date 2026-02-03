@@ -8,7 +8,8 @@
     "register": "node src/register-fid.js",
     "add-signer": "node src/add-signer.js",
     "cast": "node src/post-cast.js",
-    "swap": "node src/swap-to-usdc.js"
+    "swap": "node src/swap-to-usdc.js",
+    "profile": "node src/set-profile.js"
   },
   "dependencies": {
     "@farcaster/hub-nodejs": "^0.15.9",

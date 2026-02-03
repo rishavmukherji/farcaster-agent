@@ -84,6 +84,13 @@ PRIVATE_KEY=0x... node src/swap-to-usdc.js
 PRIVATE_KEY=0x... SIGNER_PRIVATE_KEY=... FID=123 node src/post-cast.js "Hello Farcaster!"
 ```
 
+### 7. Set Up Profile (Optional)
+
+```bash
+# Set username, display name, bio, and profile picture
+PRIVATE_KEY=0x... SIGNER_PRIVATE_KEY=... FID=123 npm run profile myusername "Display Name" "My bio" "https://example.com/pfp.png"
+```
+
 ## Detailed Walkthrough
 
 ### Step 1: FID Registration (Optimism)

@@ -219,6 +219,14 @@ npm list @farcaster/hub-nodejs
 **Cause:** Bridged assets but no ETH for gas.
 **Fix:** Always bridge/send some ETH along with the main asset, or use a gasless approach.
 
+### "fname is not registered for fid"
+**Cause:** Trying to set username in hub before the fname registry has synced.
+**Fix:** Wait 30-60 seconds after registering with `fnames.farcaster.xyz` before submitting the `UserDataAdd` message to the hub. The `registerFname()` function handles this automatically.
+
+### "fname already registered"
+**Cause:** Someone else already has that username.
+**Fix:** Choose a different fname. Check availability first by querying `https://fnames.farcaster.xyz/transfers/current?name=desiredname` (returns 404 if available).
+
 ## Cost Breakdown
 
 | Operation | Chain | Approximate Cost |
@@ -231,6 +239,94 @@ npm list @farcaster/hub-nodejs
 | **Total Minimum** | | **~$0.50** |
 
 Budget $1 to have buffer for retries and gas fluctuations.
+
+## Setting Up Profile and Username (fname)
+
+After creating your account, you'll want to set up a profile with a username, display name, bio, and profile picture.
+
+### Setting Profile Data (Display Name, Bio, PFP)
+
+Profile data is set via `UserDataAdd` messages:
+
+```javascript
+const { setProfileData } = require('./src');
+
+await setProfileData({
+  privateKey,        // For x402 payment
+  signerPrivateKey,  // For signing messages
+  fid,
+  displayName: 'My Agent',
+  bio: 'I am an autonomous AI agent.',
+  pfpUrl: 'https://example.com/avatar.png'
+});
+```
+
+Available profile fields:
+- `displayName` - Display name shown on profile
+- `bio` - Bio text (max 256 chars)
+- `pfpUrl` - URL to profile picture image
+- `url` - Website URL
+
+### Registering an fname (Username)
+
+Fnames are Farcaster usernames (e.g., @myagent). Registration is a two-step process:
+
+1. **Register with Farcaster Name Registry** - Sign an EIP-712 claim and POST to `fnames.farcaster.xyz`
+2. **Set username in hub** - Submit a `UserDataAdd` message with `UserDataType.USERNAME`
+
+```javascript
+const { registerFname } = require('./src');
+
+await registerFname({
+  privateKey,
+  signerPrivateKey,
+  fid,
+  fname: 'myagent'  // lowercase, alphanumeric, 1-16 chars
+});
+```
+
+**Important:** There's a ~30 second delay between fname registration and hub sync. The code handles this automatically.
+
+### Full Profile Setup
+
+To set everything at once:
+
+```javascript
+const { setupFullProfile } = require('./src');
+
+await setupFullProfile({
+  privateKey,
+  signerPrivateKey,
+  fid,
+  fname: 'myagent',
+  displayName: 'My Agent',
+  bio: 'I am an autonomous AI agent.',
+  pfpUrl: 'https://api.dicebear.com/7.x/bottts/png?seed=myagent'
+});
+```
+
+Or via CLI:
+
+```bash
+PRIVATE_KEY=0x... SIGNER_PRIVATE_KEY=... FID=123 npm run profile myagent "My Agent" "My bio" "https://example.com/pfp.png"
+```
+
+### Fname Requirements
+
+- Regex: `/^[a-z0-9][a-z0-9-]{0,15}$/`
+- Lowercase letters, numbers, and hyphens only
+- Cannot start with a hyphen
+- 1-16 characters
+- One fname per account
+- Can only change fname once every 28 days
+
+### Profile Picture Options
+
+For PFP, you need a publicly accessible image URL. Options:
+
+1. **DiceBear** (generated avatars): `https://api.dicebear.com/7.x/bottts/png?seed=yourname`
+2. **Upload to IPFS** via Pinata, Infura, etc.
+3. **Any public image URL** (must be HTTPS)
 
 ## Credentials to Save
 
@@ -295,5 +391,6 @@ If you encounter new errors not listed above:
 
 ## Changelog
 
+- **2026-02-03**: Added profile setup and fname registration
 - **2026-02-03**: Fixed "invalid hash" error by upgrading to hub-nodejs 0.15.9
 - **2026-02-03**: Initial version with full autonomous flow
