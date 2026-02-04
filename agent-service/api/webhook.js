@@ -81,7 +81,15 @@ module.exports = async (req, res) => {
     const parentHash = cast.hash;
     const parentFid = cast.author?.fid;
 
+    // Extract image URLs from embeds
+    const imageUrls = (cast.embeds || [])
+      .filter(e => e.url && e.metadata?.content_type?.startsWith('image/'))
+      .map(e => e.url);
+
     console.log(`Processing ${isMention ? 'mention' : 'reply'} from @${username}: "${userMessage}"`);
+    if (imageUrls.length > 0) {
+      console.log(`Found ${imageUrls.length} image(s):`, imageUrls);
+    }
 
     let responseText;
     let actionTaken = 'reply';
@@ -148,7 +156,7 @@ module.exports = async (req, res) => {
         OPENAI_API_KEY,
         userMessage,
         username,
-        { isReply: isReplyToUs, isMention }
+        { isReply: isReplyToUs, isMention, imageUrls }
       );
     }
 
