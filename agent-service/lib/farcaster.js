@@ -8,6 +8,7 @@ const {
   Message
 } = require('@farcaster/hub-nodejs');
 const https = require('https');
+const { getUserByUsername } = require('./neynar');
 
 // Constants
 const USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
@@ -108,6 +109,59 @@ async function submitToHub(wallet, messageBytes) {
 }
 
 /**
+ * Parse mentions from text and look up FIDs
+ * Returns { processedText, mentions, mentionsPositions }
+ *
+ * @rish is excluded from proper mentions (never tag rish)
+ */
+async function parseMentions(text) {
+  const mentionRegex = /@([a-zA-Z0-9_.-]+)/g;
+  const mentions = [];
+  const mentionsPositions = [];
+
+  // Find all @mentions
+  const matches = [...text.matchAll(mentionRegex)];
+
+  // Track adjustments as we remove @ symbols
+  let processedText = text;
+  let positionOffset = 0;
+
+  for (const match of matches) {
+    const username = match[1].toLowerCase();
+    const originalPosition = match.index;
+
+    // Skip @rish - never properly tag rish
+    if (username === 'rish') {
+      continue;
+    }
+
+    // Look up FID for this username
+    try {
+      const user = await getUserByUsername(username);
+      if (user && user.fid) {
+        // Calculate position after removing previous @ symbols
+        const adjustedPosition = originalPosition - positionOffset;
+
+        // Remove the @ from this mention in the text
+        const beforeMention = processedText.slice(0, adjustedPosition);
+        const afterMention = processedText.slice(adjustedPosition + 1); // +1 to skip the @
+        processedText = beforeMention + afterMention;
+
+        mentions.push(user.fid);
+        mentionsPositions.push(adjustedPosition);
+
+        positionOffset += 1; // We removed one @ character
+      }
+    } catch (e) {
+      console.log(`Could not look up user @${username}:`, e.message);
+      // Leave the @username as plain text if lookup fails
+    }
+  }
+
+  return { processedText, mentions, mentionsPositions };
+}
+
+/**
  * Post a cast (or reply) to Farcaster
  *
  * @param {Object} options
@@ -123,13 +177,16 @@ async function postCast({ custodyPrivateKey, signerPrivateKey, fid, text, parent
   const wallet = new Wallet(custodyPrivateKey, provider);
   const signer = new NobleEd25519Signer(Buffer.from(signerPrivateKey, 'hex'));
 
+  // Parse mentions from text (except @rish)
+  const { processedText, mentions, mentionsPositions } = await parseMentions(text);
+
   // Build cast data
   const castData = {
-    text,
+    text: processedText,
     embeds: [],
     embedsDeprecated: [],
-    mentions: [],
-    mentionsPositions: []
+    mentions,
+    mentionsPositions
   };
 
   // Add parent info for replies
