@@ -106,6 +106,55 @@ const { hash } = await postCast({
 console.log('Cast URL: https://farcaster.xyz/~/conversations/' + hash);
 ```
 
+> **Note:** Cast text is limited to **320 bytes** by the Farcaster Hub. This is roughly 280 ASCII characters, fewer with emoji or unicode. Keep casts concise.
+
+### Replying to a Cast
+
+```javascript
+const { postCast, loadCredentials } = require('{baseDir}/../src');
+const creds = loadCredentials();
+
+const { hash } = await postCast({
+  privateKey: creds.custodyPrivateKey,
+  signerPrivateKey: creds.signerPrivateKey,
+  fid: Number(creds.fid),
+  text: 'Great point!',
+  parent: { fid: 12345, hash: '0xabc123...' }  // parent cast author FID + cast hash
+});
+```
+
+### Mentioning Users
+
+Mentions use byte positions — the mention replaces a placeholder character at the given position, and the client renders the username.
+
+```javascript
+const { postCast, loadCredentials } = require('{baseDir}/../src');
+const creds = loadCredentials();
+
+// Mention @rish (FID 194) at the start of the cast
+const { hash } = await postCast({
+  privateKey: creds.custodyPrivateKey,
+  signerPrivateKey: creds.signerPrivateKey,
+  fid: Number(creds.fid),
+  text: ' check this out',  // space at position 0 gets replaced by @rish
+  mentions: [{ fid: 194, position: 0 }]
+});
+```
+
+### Deleting a Cast
+
+```javascript
+const { deleteCast, loadCredentials } = require('{baseDir}/../src');
+const creds = loadCredentials();
+
+const { hash } = await deleteCast({
+  privateKey: creds.custodyPrivateKey,
+  signerPrivateKey: creds.signerPrivateKey,
+  fid: Number(creds.fid),
+  targetHash: '0xabc123...'  // hash of the cast to delete
+});
+```
+
 Or via CLI with environment variables:
 
 ```bash
