@@ -21,9 +21,11 @@ const { submitMessage, getCast } = require('./x402');
  * @param {string} options.signerPrivateKey - Ed25519 signer private key (hex, no 0x)
  * @param {number} options.fid - Farcaster ID
  * @param {string} options.text - Cast text content
+ * @param {Object} [options.parent] - Parent cast for replies { fid: number, hash: string }
+ * @param {Array} [options.mentions] - Mentions as [{ fid: number, position: number }] where position is byte offset of the mention placeholder in text
  * @returns {Promise<{hash: string, verified: boolean}>}
  */
-async function postCast({ privateKey, signerPrivateKey, fid, text }) {
+async function postCast({ privateKey, signerPrivateKey, fid, text, parent, mentions }) {
   // Create wallet for x402 payments (Base)
   const baseProvider = new JsonRpcProvider(RPC.BASE);
   const wallet = new Wallet(privateKey, baseProvider);
@@ -35,15 +37,28 @@ async function postCast({ privateKey, signerPrivateKey, fid, text }) {
   const signerBytes = Buffer.from(signerPrivateKey, 'hex');
   const signer = new NobleEd25519Signer(signerBytes);
 
+  // Build cast body
+  const castBody = {
+    text,
+    embeds: [],
+    embedsDeprecated: [],
+    mentions: mentions ? mentions.map(m => m.fid) : [],
+    mentionsPositions: mentions ? mentions.map(m => m.position) : []
+  };
+
+  // Add parent for replies
+  if (parent) {
+    const parentHash = parent.hash.startsWith('0x') ? parent.hash.slice(2) : parent.hash;
+    castBody.parentCastId = {
+      fid: parent.fid,
+      hash: Buffer.from(parentHash, 'hex')
+    };
+    console.log('Replying to FID:', parent.fid, 'hash:', parent.hash);
+  }
+
   // Create cast message
   const castResult = await makeCastAdd(
-    {
-      text,
-      embeds: [],
-      embedsDeprecated: [],
-      mentions: [],
-      mentionsPositions: []
-    },
+    castBody,
     {
       fid,
       network: FarcasterNetwork.MAINNET

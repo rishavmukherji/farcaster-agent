@@ -1,6 +1,7 @@
 const { registerFid } = require('./register-fid');
 const { addSigner } = require('./add-signer');
 const { postCast } = require('./post-cast');
+const { deleteCast } = require('./delete-cast');
 const { swapEthToUsdc } = require('./swap-to-usdc');
 const { autoSetup, checkAllBalances, determineFundingStrategy } = require('./auto-setup');
 const { setProfileData, registerFname, setupFullProfile } = require('./set-profile');
@@ -25,6 +26,7 @@ module.exports = {
   registerFid,
   addSigner,
   postCast,
+  deleteCast,
   swapEthToUsdc,
 
   // Profile setup
