@@ -419,6 +419,7 @@ if (require.main === module) {
 
   const privateKey = process.env.PRIVATE_KEY || filteredArgs[0];
   const castText = filteredArgs[1];
+  const credentialsPath = process.env.FARCASTER_CREDENTIALS_PATH;
 
   if (!privateKey) {
     console.log('Usage: PRIVATE_KEY=0x... node auto-setup.js ["optional cast text"] [--no-save]');
@@ -431,11 +432,13 @@ if (require.main === module) {
     console.log('6. Save credentials to persistent storage (default: ~/.openclaw/ or ./credentials.json)');
     console.log('\nOptions:');
     console.log('  --no-save    Do not save credentials to file');
+    console.log('\nOptional environment variables:');
+    console.log('  FARCASTER_CREDENTIALS_PATH  Override where credentials are saved or loaded');
     console.log('\nCredentials path:', getCredentialsPath());
     process.exit(1);
   }
 
-  autoSetup(privateKey, castText, { save: !noSave })
+  autoSetup(privateKey, castText, { save: !noSave, credentialsPath })
     .then(result => {
       if (result.error) {
         process.exit(1);

@@ -2,12 +2,19 @@
 
 This guide is for AI agents that need to create Farcaster accounts and post casts autonomously.
 
+## Security Baseline
+
+- Use a dedicated low-value wallet for Farcaster automation.
+- Treat `PRIVATE_KEY` and `SIGNER_PRIVATE_KEY` as secrets. Prefer inline env vars for one command rather than exporting them globally.
+- Default to `--no-save`. Local credential persistence is plaintext JSON with restrictive file permissions, not encryption.
+- If an operator explicitly wants local persistence, set `FARCASTER_CREDENTIALS_PATH` to a user-chosen location.
+
 ## Critical: Library Version
 
 **You MUST use @farcaster/hub-nodejs version 0.15.9 or later.** Older versions produce invalid message hashes that the hub will reject with "invalid hash" error.
 
 ```bash
-npm install @farcaster/hub-nodejs@latest
+npm ci
 ```
 
 ## Complete Flow (For New Agents)
@@ -25,13 +32,12 @@ const wallet = Wallet.createRandom();
 console.log('=== NEW WALLET CREATED ===');
 console.log('Address:', wallet.address);
 console.log('Private Key:', wallet.privateKey);
-console.log('Mnemonic:', wallet.mnemonic.phrase);
 console.log('');
 console.log('Please send approximately $1 of ETH or USDC to this address.');
 console.log('Supported chains: Ethereum, Optimism, Base, Arbitrum, or Polygon');
 ```
 
-**Save the private key securely.** Then tell your human:
+**Save the private key securely and avoid printing it again.** Then tell your human:
 > "I've created a wallet. Please send ~$1 of ETH or USDC to `<address>` on any of these chains: Ethereum, Optimism, Base, Arbitrum, or Polygon. Let me know when done."
 
 ### Step 1: Wait for Funding, Then Run Auto-Setup
@@ -39,11 +45,11 @@ console.log('Supported chains: Ethereum, Optimism, Base, Arbitrum, or Polygon');
 Once funded:
 
 ```bash
-# Install dependencies
-npm install
+# Install dependencies from the repo root
+npm ci
 
-# Run auto-setup (handles bridging, swapping, registration, and casting)
-PRIVATE_KEY=0x... node src/auto-setup.js "Your first cast text"
+# Run auto-setup without writing credentials to disk
+PRIVATE_KEY=0x... node src/auto-setup.js "Your first cast text" --no-save
 ```
 
 This will:
@@ -53,7 +59,13 @@ This will:
 4. Add a signer key
 5. Wait for hub sync
 6. Post your first cast
-7. Return credentials to save
+7. Print the resulting credentials so you can move them into secure storage
+
+If the operator explicitly accepts local plaintext persistence, use:
+
+```bash
+PRIVATE_KEY=0x... FARCASTER_CREDENTIALS_PATH=/secure/location/farcaster-credentials.json node src/auto-setup.js "Your first cast text"
+```
 
 ## Manual Step-by-Step Flow
 
@@ -208,10 +220,10 @@ const header = Buffer.from(JSON.stringify(paymentPayload)).toString('base64');
 
 **Fix:**
 ```bash
-npm install @farcaster/hub-nodejs@latest
+npm ci
 ```
 
-**Why this happens:** The package.json might specify an old version like `^0.12.0`. Always verify you have 0.15.9+ installed:
+**Why this happens:** A stale install or old checkout may still have an older dependency tree. Always verify you have 0.15.9+ installed:
 ```bash
 npm list @farcaster/hub-nodejs
 ```
@@ -347,11 +359,14 @@ For PFP, you need a publicly accessible image URL. Options:
 
 ## Credential Storage
 
-Credentials are **automatically saved** after setup to:
-- `~/.openclaw/farcaster-credentials.json` (if OpenClaw is installed)
-- `./credentials.json` (fallback)
+The CLI can save credentials if you omit `--no-save`, but this guide recommends `--no-save` by default.
 
-**Security Warning:** Credentials are stored as **plain text JSON** with restricted file permissions (owner read/write only). This implementation is intentionally simple. Anyone gaining access to these files can control both the funds in the wallet and the Farcaster account. For production use or high-value accounts, you should implement your own secure storage (encrypted files, system keychain, hardware security modules, etc.).
+If you opt into saving, the default locations are:
+- `~/.openclaw/farcaster-credentials.json` if `~/.openclaw` exists
+- `./credentials.json` otherwise
+- `FARCASTER_CREDENTIALS_PATH` overrides both
+
+**Security Warning:** Credentials are stored as **plain text JSON** with restrictive file permissions (`0600`), but that is still not encrypted. Anyone gaining access to these files can control both the funds in the wallet and the Farcaster account. For production use or higher-value accounts, use secure storage instead.
 
 The stored credentials include:
 - **FID:** The Farcaster ID number
@@ -373,6 +388,12 @@ node src/credentials.js get 123456
 
 # Show credentials file path
 node src/credentials.js path
+```
+
+To manage a non-default file:
+
+```bash
+FARCASTER_CREDENTIALS_PATH=/secure/location/farcaster-credentials.json node src/credentials.js list
 ```
 
 ### Loading Credentials Programmatically
@@ -401,6 +422,12 @@ To prevent auto-saving credentials:
 PRIVATE_KEY=0x... node src/auto-setup.js "Your cast" --no-save
 ```
 
+To save intentionally to a specific path:
+
+```bash
+PRIVATE_KEY=0x... FARCASTER_CREDENTIALS_PATH=/secure/location/farcaster-credentials.json node src/auto-setup.js "Your cast"
+```
+
 ## Example Complete Flow
 
 ```javascript
@@ -413,7 +440,7 @@ console.log('Fund this address with $1 ETH or USDC on any chain:');
 console.log(wallet.address);
 
 // After funding, run:
-const result = await autoSetup(wallet.privateKey, 'My first autonomous cast!');
+const result = await autoSetup(wallet.privateKey, 'My first autonomous cast!', { save: false });
 
 console.log('FID:', result.fid);
 console.log('Signer Key:', result.signerPrivateKey);
@@ -432,8 +459,7 @@ If you encounter new errors not listed above:
 
 1. **Check library versions first** - The Farcaster protocol evolves. Update all dependencies:
    ```bash
-   npm update
-   npm install @farcaster/hub-nodejs@latest
+   npm ci
    ```
 
 2. **Verify on-chain state** - Check if your FID and signer are registered:
@@ -465,10 +491,13 @@ npx clawhub@latest install farcaster-agent
 
 Or manually copy the `skill/` directory to `~/.openclaw/skills/farcaster-agent/`.
 
-The skill provides natural language instructions for creating Farcaster accounts, posting casts, and setting up profiles.
+The skill bootstraps this repository into its own runtime directory before running any Farcaster commands, so it no longer depends on a sibling checkout or `../src` layout.
+
+The skill provides natural language instructions for creating Farcaster accounts, posting casts, and setting up profiles, with `--no-save` documented as the default path.
 
 ## Changelog
 
+- **2026-03-10**: Updated skill and agent docs for self-bootstrapping runtime, explicit secret handling, and safer credential storage defaults
 - **2026-02-03**: Added OpenClaw skill for agent compatibility
 - **2026-02-03**: Added profile setup and fname registration
 - **2026-02-03**: Fixed "invalid hash" error by upgrading to hub-nodejs 0.15.9
