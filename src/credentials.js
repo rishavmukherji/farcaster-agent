@@ -5,12 +5,17 @@ const os = require('os');
 // Default credential storage locations
 const OPENCLAW_DIR = path.join(os.homedir(), '.openclaw');
 const CREDENTIALS_FILENAME = 'farcaster-credentials.json';
+const CREDENTIALS_PATH_ENV = 'FARCASTER_CREDENTIALS_PATH';
 
 /**
  * Get the credentials file path
- * Priority: 1) OpenClaw dir if exists, 2) Local ./credentials.json
+ * Priority: 1) Explicit env path, 2) OpenClaw dir if exists, 3) Local ./credentials.json
  */
 function getCredentialsPath() {
+  if (process.env[CREDENTIALS_PATH_ENV]) {
+    return path.resolve(process.env[CREDENTIALS_PATH_ENV]);
+  }
+
   // If running in OpenClaw environment, use ~/.openclaw/
   if (fs.existsSync(OPENCLAW_DIR)) {
     return path.join(OPENCLAW_DIR, CREDENTIALS_FILENAME);
@@ -233,6 +238,9 @@ if (require.main === module) {
     console.log('  node credentials.js list          - List all stored accounts');
     console.log('  node credentials.js get [fid]     - Get credentials for FID (or active)');
     console.log('  node credentials.js path          - Show credentials file path');
+    console.log('');
+    console.log('Optional environment variables:');
+    console.log(`  ${CREDENTIALS_PATH_ENV}  Override where credentials are saved or loaded`);
   }
 }
 
