@@ -5,6 +5,7 @@
   "main": "api/webhook.js",
   "scripts": {
     "dev": "vercel dev",
+    "test": "node --test",
     "deploy": "vercel --prod"
   },
   "dependencies": {
