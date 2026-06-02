@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { postCast, followUser, unfollowUser } = require('../lib/farcaster');
 const { generateResponse } = require('../lib/openai');
 const { evaluateFollow, evaluateUnfollow, incrementFollowCount, getFollowsRemaining } = require('../lib/follow-eval');
@@ -8,6 +9,7 @@ const CUSTODY_PRIVATE_KEY = process.env.CUSTODY_PRIVATE_KEY;
 const SIGNER_PRIVATE_KEY = process.env.SIGNER_PRIVATE_KEY;
 const AGENT_FID = parseInt(process.env.AGENT_FID || '2634873');
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
+const NEYNAR_SIGNATURE_HEADER = 'x-neynar-signature';
 
 // Patterns to detect follow/unfollow requests
 const FOLLOW_PATTERNS = [
@@ -35,6 +37,96 @@ function isUnfollowRequest(text) {
   return UNFOLLOW_PATTERNS.some(pattern => pattern.test(text));
 }
 
+function getHeader(req, headerName) {
+  const headers = req.headers || {};
+  const requested = headerName.toLowerCase();
+
+  for (const [name, value] of Object.entries(headers)) {
+    if (name.toLowerCase() !== requested) {
+      continue;
+    }
+    return Array.isArray(value) ? value[0] : value;
+  }
+
+  return undefined;
+}
+
+function getWebhookPayload(req) {
+  if (Buffer.isBuffer(req.rawBody)) {
+    return req.rawBody;
+  }
+  if (typeof req.rawBody === 'string') {
+    return req.rawBody;
+  }
+  if (Buffer.isBuffer(req.body)) {
+    return req.body;
+  }
+  if (typeof req.body === 'string') {
+    return req.body;
+  }
+  return JSON.stringify(req.body || {});
+}
+
+function signaturesMatch(actualSignature, expectedSignature) {
+  if (typeof actualSignature !== 'string') {
+    return false;
+  }
+
+  const actual = Buffer.from(actualSignature, 'hex');
+  const expected = Buffer.from(expectedSignature, 'hex');
+
+  if (actual.length !== expected.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(actual, expected);
+}
+
+function verifyNeynarWebhook(req) {
+  const webhookSecret = process.env.NEYNAR_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    return {
+      ok: false,
+      status: 500,
+      error: 'Neynar webhook secret is not configured'
+    };
+  }
+
+  const signature = getHeader(req, NEYNAR_SIGNATURE_HEADER);
+  if (!signature) {
+    return {
+      ok: false,
+      status: 401,
+      error: 'Neynar webhook signature missing'
+    };
+  }
+
+  const payload = getWebhookPayload(req);
+  const expectedSignature = crypto
+    .createHmac('sha512', webhookSecret)
+    .update(payload)
+    .digest('hex');
+
+  if (!signaturesMatch(signature, expectedSignature)) {
+    return {
+      ok: false,
+      status: 401,
+      error: 'Invalid Neynar webhook signature'
+    };
+  }
+
+  return { ok: true, payload };
+}
+
+function parseWebhookEvent(body, payload) {
+  if (body && typeof body === 'object' && !Buffer.isBuffer(body)) {
+    return body;
+  }
+
+  const rawPayload = Buffer.isBuffer(payload) ? payload.toString('utf8') : String(payload || '');
+  return JSON.parse(rawPayload);
+}
+
 /**
  * Vercel serverless function to handle Neynar webhook events
  */
@@ -44,8 +136,13 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const verification = verifyNeynarWebhook(req);
+  if (!verification.ok) {
+    return res.status(verification.status).json({ error: verification.error });
+  }
+
   try {
-    const event = req.body;
+    const event = parseWebhookEvent(req.body, verification.payload);
 
     // Log the incoming event
     console.log('Received webhook event:', JSON.stringify(event, null, 2));
